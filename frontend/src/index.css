@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+/*
+ * Design tokens for the AI Business Research Agent dashboard.
+ * Exact palette as specified:
+ *   Background: #0F172A
+ *   Cards:      #1E293B
+ *   Primary:    #3B82F6
+ *   Accent:     #22C55E
+ *   Text:       #F8FAFC
+ *
+ * Defining these under @theme (Tailwind v4's CSS-first config) makes
+ * them available as utility classes automatically, e.g.:
+ *   bg-background, bg-card, bg-primary, bg-accent, text-foreground
+ */
+@theme {
+  --color-background: #0f172a;
+  --color-card: #1e293b;
+  --color-primary: #3b82f6;
+  --color-accent: #22c55e;
+  --color-foreground: #f8fafc;
+
+  --color-muted: #94a3b8;
+  --color-border: #334155;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-foreground);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    sans-serif;
+}
+
+/* Thin, unobtrusive scrollbars that fit the dark theme */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: var(--color-border);
+  border-radius: 9999px;
+}

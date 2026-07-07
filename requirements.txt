@@ -1,0 +1,26 @@
+# Core LangChain framework
+langchain==1.3.11
+langchain-core==1.4.8
+langchain-community==0.4.2
+langchain-experimental==0.4.2
+
+# LLM provider integration
+langchain-groq==1.1.3
+
+# Database ORM / SQL engine
+sqlalchemy==2.0.51
+
+# Environment variable management
+python-dotenv==1.2.2
+
+# Web search tool
+tavily-python==0.7.26
+
+# Backend API (dashboard)
+fastapi==0.139.0
+uvicorn[standard]==0.50.2
+python-multipart==0.0.32
+
+# Data export (CSV / Excel / JSON)
+pandas==3.0.3
+openpyxl==3.1.5
