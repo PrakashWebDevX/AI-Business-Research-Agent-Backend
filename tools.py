@@ -98,7 +98,7 @@ def peek_web_agent() -> Optional[WebAgent]:
 
 SQL_TOOL_NAME = "sql_database_tool"
 SQL_TOOL_DESCRIPTION = (
- """
+    """
 Use this tool for ANY question about the company's internal database.
 
 Examples:
@@ -143,7 +143,7 @@ def build_sql_tool() -> Tool:
 
 WEB_SEARCH_TOOL_NAME = "web_search_tool"
 WEB_SEARCH_TOOL_DESCRIPTION = (
-"""
+    """
 Use this tool for ANY question requiring internet knowledge.
 
 Examples:
@@ -176,21 +176,19 @@ def build_web_search_tool() -> Tool:
         A LangChain `Tool` named "web_search_tool".
     """
 
-def _run_web_search(question: str) -> str:
-    logger.info("WEB TOOL CALLED")
-    logger.info("Question: %s", question)
-    result = _get_web_agent().ask(question)
-    logger.info("WEB TOOL RESULT: %s", result)
-    return result
-    return _get_web_agent().ask(question) 
+    def _run_web_search(question: str) -> str:
+        logger.info("WEB TOOL CALLED")
+        logger.info("Question: %s", question)
+        result = _get_web_agent().ask(question)
+        logger.info("WEB TOOL RESULT: %s", result)
+        return result
 
-
-
-return Tool.from_function(
+    return Tool.from_function(
         func=_run_web_search,
         name=WEB_SEARCH_TOOL_NAME,
         description=WEB_SEARCH_TOOL_DESCRIPTION,
     )
+
 
 # --------------------------------------------------------------------------- #
 # Registry
