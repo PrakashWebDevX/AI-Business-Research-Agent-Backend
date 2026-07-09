@@ -60,11 +60,13 @@ def _get_sql_agent() -> SQLAgent:
 
 
 def _get_web_agent() -> WebAgent:
-    """Return the shared WebAgent instance, creating it on first use."""
     global _web_agent_instance
+
     if _web_agent_instance is None:
-        logger.info("Lazily initializing WebAgent for tools.py...")
+        logger.info("Creating WebAgent...")
         _web_agent_instance = WebAgent()
+        logger.info("WebAgent created successfully")
+
     return _web_agent_instance
 
 
@@ -96,12 +98,26 @@ def peek_web_agent() -> Optional[WebAgent]:
 
 SQL_TOOL_NAME = "sql_database_tool"
 SQL_TOOL_DESCRIPTION = (
-    "Use this tool to answer questions about the company's internal business "
-    "data stored in the SQL database — employees, departments, products, "
-    "customers, and orders. Good for questions like 'show all employees', "
-    "'what is the average salary', 'how many employees are there', "
-    "'what is our total revenue', or 'show product sales'. "
-    "Input should be a plain-language question; do not write raw SQL."
+ """
+Use this tool for ANY question about the company's internal database.
+
+Examples:
+- employees
+- salary
+- revenue
+- products
+- orders
+- customers
+- departments
+- sales
+- count
+- average
+- total
+
+Always use this tool whenever the answer may exist in the SQL database.
+
+Never answer these questions from your own knowledge.
+"""
 )
 
 
@@ -127,11 +143,26 @@ def build_sql_tool() -> Tool:
 
 WEB_SEARCH_TOOL_NAME = "web_search_tool"
 WEB_SEARCH_TOOL_DESCRIPTION = (
-    "Use this tool to answer questions that require current, real-world "
-    "information from the internet — news, market trends, competitor "
-    "information, or anything not stored in the internal database. "
-    "Input should be a plain-language question or search topic. "
-    "Returns a concise, summarized answer, not raw search results."
+"""
+Use this tool for ANY question requiring internet knowledge.
+
+Examples:
+
+- latest news
+- market trends
+- competitors
+- startup funding
+- company information
+- stock market
+- AI news
+- industry reports
+- public companies
+- current events
+
+Always use this tool whenever current or public information is required.
+
+Never answer these questions using your own knowledge.
+"""
 )
 
 
@@ -146,6 +177,14 @@ def build_web_search_tool() -> Tool:
     """
 
     def _run_web_search(question: str) -> str:
+    logger.info("WEB TOOL CALLED")
+    logger.info("Question: %s", question)
+
+    result = _get_web_agent().ask(question)
+
+    logger.info("WEB TOOL RESULT: %s", result)
+
+    return result
         return _get_web_agent().ask(question)
 
     return Tool.from_function(

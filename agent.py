@@ -68,7 +68,10 @@ logger = logging.getLogger(__name__)
 
 # NOTE: These will eventually be centralized in config.py. They are kept
 # local for now so this module stays fully functional on its own.
-GROQ_MODEL_NAME: Final[str] = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-120b")
+GROQ_MODEL_NAME = os.getenv(
+    "GROQ_MODEL_NAME",
+    "llama-3.3-70b-versatile"
+)
 GROQ_TEMPERATURE: Final[float] = 0.1  # Low temperature: consistent tool-selection decisions.
 ORCHESTRATOR_MAX_ITERATIONS: Final[int] = 10
 MAX_HISTORY_MESSAGES: Final[int] = 12  # Cap on stored chat turns to keep context small and fast.
@@ -131,6 +134,14 @@ class BusinessAgent:
         #    a new capability to the whole system later requires no
         #    changes here — just registering it in tools.py.
         self._tools = get_all_tools()
+        logger.info("=" * 60)
+        logger.info("REGISTERED TOOLS")
+
+        for tool in self._tools:
+        logger.info("Tool: %s", tool.name)
+        logger.info("Description: %s", tool.description)
+
+        logger.info("=" * 60)
 
         # 3. Prompt: the orchestrator system prompt from prompts.py,
         #    which instructs the model to autonomously choose between
@@ -194,11 +205,19 @@ class BusinessAgent:
 
         try:
             result = self._agent_executor.invoke(
-                {
-                    "input": question,
-                    "chat_history": self._chat_history,
-                }
+            {
+                "input": question,
+                "chat_history": self._chat_history,
+            }
             )
+
+            logger.info("=" * 60)
+            logger.info("Agent Result:")
+            logger.info(result)
+            logger.info("Intermediate Steps:")
+            logger.info(result.get("intermediate_steps"))
+            logger.info("=" * 60)
+
             answer = self._clean_response(result.get("output", ""))
 
             # Update memory with this turn, then trim to keep it bounded.
@@ -207,9 +226,9 @@ class BusinessAgent:
             self._chat_history = self._chat_history[-MAX_HISTORY_MESSAGES:]
 
             structured = self._build_structured_result(
-                answer=answer,
-                intermediate_steps=result.get("intermediate_steps", []),
-                elapsed_seconds=round(time.perf_counter() - start_time, 2),
+            answer=answer,
+            intermediate_steps=result.get("intermediate_steps", []),
+            elapsed_seconds=round(time.perf_counter() - start_time, 2),
             )
         except OutputParserException as exc:
             logger.error("Failed to parse agent output: %s", exc)
