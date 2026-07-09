@@ -176,23 +176,21 @@ def build_web_search_tool() -> Tool:
         A LangChain `Tool` named "web_search_tool".
     """
 
-    def _run_web_search(question: str) -> str:
+def _run_web_search(question: str) -> str:
     logger.info("WEB TOOL CALLED")
     logger.info("Question: %s", question)
-
     result = _get_web_agent().ask(question)
-
     logger.info("WEB TOOL RESULT: %s", result)
-
     return result
-        return _get_web_agent().ask(question)
+    return _get_web_agent().ask(question) 
 
-    return Tool.from_function(
+
+
+return Tool.from_function(
         func=_run_web_search,
         name=WEB_SEARCH_TOOL_NAME,
         description=WEB_SEARCH_TOOL_DESCRIPTION,
     )
-
 
 # --------------------------------------------------------------------------- #
 # Registry
