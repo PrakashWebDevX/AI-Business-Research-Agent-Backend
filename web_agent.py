@@ -286,48 +286,42 @@ class WebAgent:
         client = TavilyClient(api_key=api_key)
 
         def _search(query: str) -> str:
-            """Run a Tavily web search and return a compact, LLM-friendly summary of results."""
-            logger.info("Tavily search: %s", query)
-            try:
-                response = client.search(
-                    query=query,
-                    max_results=TAVILY_MAX_RESULTS,
-                    include_answer=True,
-                )
-            except Exception as exc:  # noqa: BLE001 - surface search failures as tool output, not a crash
-                logger.exception("Tavily search failed for query: %s", query)
-                return f"Web search failed due to an error: {exc}"
+            logger.info("=" * 60)
+            logger.info("TAVILY SEARCH QUERY: %s", query)
 
-            parts: List[str] = []
+            response = client.search(
+                query=query,
+                max_results=TAVILY_MAX_RESULTS,
+                include_answer=True,
+            )
 
-            # Tavily's own quick-answer field, when available, is a great
-            # starting point for the LLM to summarize from.
+            logger.info("TAVILY RESPONSE:")
+            logger.info(response)
+            logger.info("=" * 60)
+
+            parts = []
+
             quick_answer = response.get("answer")
             if quick_answer:
                 parts.append(f"Quick answer: {quick_answer}")
 
-            # Individual result snippets give the LLM enough grounding detail
-            # to write an accurate, source-aware summary. Each one is also
-            # recorded as a source for display in the dashboard UI.
             for i, result in enumerate(response.get("results", []), start=1):
-                title = result.get("title", "Untitled")
+                title = result.get("title", "")
                 url = result.get("url", "")
-                content = result.get("content", "").strip()
+                content = result.get("content", "")
+
+                logger.info("RESULT %s", i)
+                logger.info("Title: %s", title)
+                logger.info("URL: %s", url)
+
                 parts.append(f"[{i}] {title} ({url})\n{content}")
-                if url:
-                    self._last_sources.append({"title": title, "url": url})
 
-            return "\n\n".join(parts) if parts else "No relevant results were found."
+                self._last_sources.append({
+                    "title": title,
+                    "url": url,
+                })
 
-        return Tool.from_function(
-            func=_search,
-            name="tavily_web_search",
-            description=(
-                "Search the internet for current, real-world information such as "
-                "news, company facts, market trends, or anything not available in "
-                "the local database. Input should be a focused search query string."
-            ),
-        )
+            return "\n\n".join(parts)
 
 
 # --------------------------------------------------------------------------- #

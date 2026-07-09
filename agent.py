@@ -204,32 +204,32 @@ class BusinessAgent:
         start_time = time.perf_counter()
 
         try:
-            result = self._agent_executor.invoke(
-            {
-                "input": question,
-                "chat_history": self._chat_history,
-            }
-            )
+        result = self._agent_executor.invoke(
+        {
+            "input": question,
+            "chat_history": self._chat_history,
+        }
+        )
 
-            logger.info("=" * 60)
-            logger.info("Agent Result:")
-            logger.info(result)
-            logger.info("Intermediate Steps:")
-            logger.info(result.get("intermediate_steps"))
-            logger.info("=" * 60)
+        logger.info("=" * 60)
+        logger.info("Agent Result:")
+        logger.info(result)
+        logger.info("Intermediate Steps:")
+        logger.info(result.get("intermediate_steps"))
+        logger.info("=" * 60)
 
-            answer = self._clean_response(result.get("output", ""))
+        answer = self._clean_response(result.get("output", ""))
 
-            # Update memory with this turn, then trim to keep it bounded.
-            self._chat_history.append(HumanMessage(content=question))
-            self._chat_history.append(AIMessage(content=answer))
-            self._chat_history = self._chat_history[-MAX_HISTORY_MESSAGES:]
+        # Update memory with this turn, then trim to keep it bounded.
+        self._chat_history.append(HumanMessage(content=question))
+        self._chat_history.append(AIMessage(content=answer))
+        self._chat_history = self._chat_history[-MAX_HISTORY_MESSAGES:]
 
-            structured = self._build_structured_result(
-            answer=answer,
-            intermediate_steps=result.get("intermediate_steps", []),
-            elapsed_seconds=round(time.perf_counter() - start_time, 2),
-            )
+        structured = self._build_structured_result(
+        answer=answer,
+        intermediate_steps=result.get("intermediate_steps", []),
+        elapsed_seconds=round(time.perf_counter() - start_time, 2),
+        )
         except OutputParserException as exc:
             logger.error("Failed to parse agent output: %s", exc)
             structured = ToolExecutionResult(
