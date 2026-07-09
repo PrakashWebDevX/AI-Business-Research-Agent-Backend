@@ -138,8 +138,8 @@ class BusinessAgent:
         logger.info("REGISTERED TOOLS")
 
         for tool in self._tools:
-        logger.info("Tool: %s", tool.name)
-        logger.info("Description: %s", tool.description)
+            logger.info("Tool: %s", tool.name)
+            logger.info("Description: %s", tool.description)
 
         logger.info("=" * 60)
 
