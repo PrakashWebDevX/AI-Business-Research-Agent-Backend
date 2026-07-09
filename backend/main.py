@@ -158,26 +158,18 @@ def health() -> dict:
 
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
-    """
-    Send a question to the orchestrator agent and get back a full
-    structured answer (tool used, timing, SQL, table data, chart,
-    sources), scoped to a chat session.
-
-    If `session_id` is omitted or unknown, a new session is created.
-    """
     session = session_store.get_or_create_session(request.session_id)
-    _ensure_session_is_active(session)
 
-    session_store.add_user_message(session, request.message)
-
-    agent = _get_agent()
     try:
+        _ensure_session_is_active(session)
+        session_store.add_user_message(session, request.message)
+        agent = _get_agent()
         result = agent.ask_structured(request.message)
     except EnvironmentError as exc:
-        # Missing GROQ_API_KEY / TAVILY_API_KEY — surface as a clean 500
-        # rather than a raw stack trace, since this is a deployment/config
-        # issue, not a bad request.
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except Exception as exc:  # noqa: BLE001 - never leak a raw 500 to the frontend
+        logger.exception("Unhandled error in /api/chat")
+        raise HTTPException(status_code=500, detail=f"Unexpected server error: {exc}") from exc
 
     assistant_message = session_store.add_assistant_message(session, result)
 
@@ -185,7 +177,6 @@ def chat(request: ChatRequest) -> ChatResponse:
         session_id=session.id,
         message=_stored_message_to_model(assistant_message),
     )
-
 
 # --------------------------------------------------------------------------- #
 # Sessions
