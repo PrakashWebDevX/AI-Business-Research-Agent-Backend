@@ -288,19 +288,21 @@ class WebAgent:
         def _search(query: str) -> str:
             logger.info("=" * 60)
             logger.info("TAVILY SEARCH QUERY: %s", query)
-
-            response = client.search(
-                query=query,
-                max_results=TAVILY_MAX_RESULTS,
-                include_answer=True,
-            )
+            try:
+                response = client.search(
+                    query=query,
+                    max_results=TAVILY_MAX_RESULTS,
+                    include_answer=True,
+                )
+            except Exception as exc:  # noqa: BLE001 - surface search failures as tool output, not a crash
+                logger.exception("Tavily search failed for query: %s", query)
+                return f"Web search failed due to an error: {exc}"
 
             logger.info("TAVILY RESPONSE:")
             logger.info(response)
             logger.info("=" * 60)
 
             parts = []
-
             quick_answer = response.get("answer")
             if quick_answer:
                 parts.append(f"Quick answer: {quick_answer}")
@@ -309,19 +311,26 @@ class WebAgent:
                 title = result.get("title", "")
                 url = result.get("url", "")
                 content = result.get("content", "")
-
                 logger.info("RESULT %s", i)
                 logger.info("Title: %s", title)
                 logger.info("URL: %s", url)
-
                 parts.append(f"[{i}] {title} ({url})\n{content}")
-
                 self._last_sources.append({
                     "title": title,
                     "url": url,
                 })
 
-            return "\n\n".join(parts)
+            return "\n\n".join(parts) if parts else "No relevant results were found."
+
+        return Tool.from_function(
+            func=_search,
+            name="tavily_web_search",
+            description=(
+                "Search the internet for current, real-world information such as "
+                "news, company facts, market trends, or anything not available in "
+                "the local database. Input should be a focused search query string."
+            ),
+        )
 
 
 # --------------------------------------------------------------------------- #
