@@ -36,6 +36,14 @@ from langchain_core.tools import Tool
 from sql_agent import SQLAgent
 from web_agent import WebAgent
 
+from pydantic import BaseModel, Field
+
+class SQLToolInput(BaseModel):
+    question: str = Field(description="A natural-language question about internal business data.")
+
+class WebSearchToolInput(BaseModel):
+    question: str = Field(description="A natural-language question or topic to research on the web.")
+
 logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------- #
@@ -138,6 +146,7 @@ def build_sql_tool() -> Tool:
         func=_run_sql_query,
         name=SQL_TOOL_NAME,
         description=SQL_TOOL_DESCRIPTION,
+        args_schema=SQLToolInput,
     )
 
 
@@ -187,6 +196,7 @@ def build_web_search_tool() -> Tool:
         func=_run_web_search,
         name=WEB_SEARCH_TOOL_NAME,
         description=WEB_SEARCH_TOOL_DESCRIPTION,
+        args_schema=WebSearchToolInput,
     )
 
 
