@@ -13,17 +13,18 @@ Responsibilities:
       implemented.
 
 Design notes:
-    - Each tool is built by its own small, focused function
-      (`build_sql_tool`, `build_web_search_tool`), so tools can be
-      added, removed, or swapped independently — this is what keeps the
-      file modular.
+    - Tools are built using the `@tool` decorator, which derives a
+      clean, correctly-named argument schema directly from each
+      function's signature and docstring. This avoids the ambiguous
+      `__arg1` fallback schema that the older `Tool.from_function(...)`
+      pattern can produce.
     - The underlying agents (SQLAgent, WebAgent) are created lazily, on
       first use, not at import time. This means importing tools.py never
       fails just because an API key isn't set yet; the error only
       surfaces if that specific tool is actually invoked.
     - `get_all_tools()` is the single function the orchestrator should
       call to get the full toolset. Adding a new tool later only means
-      writing a new `build_*_tool()` function and adding it to that list.
+      writing a new `@tool`-decorated function and adding it to that list.
 """
 
 from __future__ import annotations
@@ -31,18 +32,10 @@ from __future__ import annotations
 import logging
 from typing import List, Optional
 
-from langchain_core.tools import Tool
+from langchain_core.tools import Tool, tool
 
 from sql_agent import SQLAgent
 from web_agent import WebAgent
-
-from pydantic import BaseModel, Field
-
-class SQLToolInput(BaseModel):
-    question: str = Field(description="A natural-language question about internal business data.")
-
-class WebSearchToolInput(BaseModel):
-    question: str = Field(description="A natural-language question or topic to research on the web.")
 
 logger = logging.getLogger(__name__)
 
@@ -101,127 +94,86 @@ def peek_web_agent() -> Optional[WebAgent]:
 
 
 # --------------------------------------------------------------------------- #
-# Individual tool builders
+# Tool name constants
 # --------------------------------------------------------------------------- #
+# Kept as constants (rather than reading tool.name directly everywhere)
+# because agent.py imports these to detect which tool(s) the orchestrator
+# used for a given question. The @tool decorator below sets each
+# function's `.name` to match these automatically.
 
 SQL_TOOL_NAME = "sql_database_tool"
-SQL_TOOL_DESCRIPTION = (
-    """
-Use this tool for ANY question about the company's internal database.
-
-Examples:
-- employees
-- salary
-- revenue
-- products
-- orders
-- customers
-- departments
-- sales
-- count
-- average
-- total
-
-Always use this tool whenever the answer may exist in the SQL database.
-
-Never answer these questions from your own knowledge.
-"""
-)
-
-
-def build_sql_tool() -> Tool:
-    """
-    Build the SQL Tool: wraps SQLAgent.ask() so a LangChain agent can
-    query the internal Employees/Departments/Products/Customers/Orders
-    database using natural language.
-
-    Returns:
-        A LangChain `Tool` named "sql_database_tool".
-    """
-
-    def _run_sql_query(question: str) -> str:
-        return _get_sql_agent().ask(question)
-
-    return Tool.from_function(
-        func=_run_sql_query,
-        name=SQL_TOOL_NAME,
-        description=SQL_TOOL_DESCRIPTION,
-        args_schema=SQLToolInput,
-    )
-
-
 WEB_SEARCH_TOOL_NAME = "web_search_tool"
-WEB_SEARCH_TOOL_DESCRIPTION = (
+
+
+# --------------------------------------------------------------------------- #
+# Tools
+# --------------------------------------------------------------------------- #
+
+@tool
+def sql_database_tool(question: str) -> str:
+    """Use this tool for ANY question about the company's internal database.
+
+    Examples:
+    - employees
+    - salary
+    - revenue
+    - products
+    - orders
+    - customers
+    - departments
+    - sales
+    - count
+    - average
+    - total
+
+    Always use this tool whenever the answer may exist in the SQL database.
+    Never answer these questions from your own knowledge.
     """
-Use this tool for ANY question requiring internet knowledge.
-
-Examples:
-
-- latest news
-- market trends
-- competitors
-- startup funding
-- company information
-- stock market
-- AI news
-- industry reports
-- public companies
-- current events
-
-Always use this tool whenever current or public information is required.
-
-Never answer these questions using your own knowledge.
-"""
-)
+    return _get_sql_agent().ask(question)
 
 
-def build_web_search_tool() -> Tool:
+@tool
+def web_search_tool(question: str) -> str:
+    """Use this tool for ANY question requiring internet knowledge.
+
+    Examples:
+    - latest news
+    - market trends
+    - competitors
+    - startup funding
+    - company information
+    - stock market
+    - AI news
+    - industry reports
+    - public companies
+    - current events
+
+    Always use this tool whenever current or public information is required.
+    Never answer these questions using your own knowledge.
     """
-    Build the Web Search Tool: wraps WebAgent.ask() so a LangChain agent
-    can research topics on the open web via Tavily Search + Groq
-    summarization, with follow-up context preserved across calls.
-
-    Returns:
-        A LangChain `Tool` named "web_search_tool".
-    """
-
-    def _run_web_search(question: str) -> str:
-        logger.info("WEB TOOL CALLED")
-        logger.info("Question: %s", question)
-        result = _get_web_agent().ask(question)
-        logger.info("WEB TOOL RESULT: %s", result)
-        return result
-
-    return Tool.from_function(
-        func=_run_web_search,
-        name=WEB_SEARCH_TOOL_NAME,
-        description=WEB_SEARCH_TOOL_DESCRIPTION,
-        args_schema=WebSearchToolInput,
-    )
+    logger.info("WEB TOOL CALLED")
+    logger.info("Question: %s", question)
+    result = _get_web_agent().ask(question)
+    logger.info("WEB TOOL RESULT: %s", result)
+    return result
 
 
 # --------------------------------------------------------------------------- #
 # Registry
 # --------------------------------------------------------------------------- #
-# Central list of tool builder functions. To add a new tool to the agent
-# in the future, write a new `build_*_tool()` function above and append
-# it here — no other file needs to change.
-
-_TOOL_BUILDERS = [
-    build_sql_tool,
-    build_web_search_tool,
-]
-
+# Central list of tools. To add a new tool to the agent in the future,
+# write a new `@tool`-decorated function above and append it here — no
+# other file needs to change.
 
 def get_all_tools() -> List[Tool]:
     """
-    Build and return the complete set of tools available to the
-    orchestrator agent (agent.py).
+    Return the complete set of tools available to the orchestrator agent
+    (agent.py).
 
     Returns:
         A list of LangChain `Tool` instances: [SQL Tool, Web Search Tool].
     """
-    return [builder() for builder in _TOOL_BUILDERS]
+    return [sql_database_tool, web_search_tool]
 
 
 # --------------------------------------------------------------------------- #
@@ -233,17 +185,17 @@ def _run_demo() -> None:
     tools = get_all_tools()
 
     print("Registered tools:")
-    for tool in tools:
-        print(f"- {tool.name}: {tool.description[:80]}...")
+    for t in tools:
+        print(f"- {t.name}: {t.description[:80]}...")
 
     sql_tool = next(t for t in tools if t.name == SQL_TOOL_NAME)
     web_tool = next(t for t in tools if t.name == WEB_SEARCH_TOOL_NAME)
 
     print("\n=== SQL Tool sample ===")
-    print(sql_tool.func("How many employees are there?"))
+    print(sql_tool.invoke("How many employees are there?"))
 
     print("\n=== Web Search Tool sample ===")
-    print(web_tool.func("What are the latest trends in the AI chip market?"))
+    print(web_tool.invoke("What are the latest trends in the AI chip market?"))
 
 
 if __name__ == "__main__":

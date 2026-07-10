@@ -56,6 +56,15 @@ from backend.session_store import Session, StoredMessage
 
 logger = logging.getLogger(__name__)
 
+# One-time diagnostic: confirm exactly which langchain versions are
+# actually installed in this deployment. Safe to remove once the
+# __arg1 tool-schema issue is confirmed resolved.
+import langchain_core
+import langchain
+
+logger.info("langchain version: %s", langchain.__version__)
+logger.info("langchain_core version: %s", langchain_core.__version__)
+
 app = FastAPI(
     title="AI Business Research Agent API",
     description="Backend API powering the AI Business Research Agent dashboard.",
@@ -78,6 +87,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 # --------------------------------------------------------------------------- #
 # Shared agent (lazy singleton — see module docstring)
 # --------------------------------------------------------------------------- #
@@ -177,6 +187,7 @@ def chat(request: ChatRequest) -> ChatResponse:
         session_id=session.id,
         message=_stored_message_to_model(assistant_message),
     )
+
 
 # --------------------------------------------------------------------------- #
 # Sessions
