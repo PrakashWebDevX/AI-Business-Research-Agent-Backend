@@ -41,6 +41,12 @@ two available capabilities:
 2. A web search tool, which retrieves current, real-world information
    from the internet — news, market trends, competitor data, and
    anything not stored internally.
+   
+3. A document search tool, which retrieves relevant excerpts from any
+   documents the user has previously uploaded (PDFs, text notes, reports).
+   Use this whenever the question references "the document", "the PDF",
+   "the report", "my notes", or asks you to summarize/analyze uploaded
+   content.
 
 How you must operate:
 

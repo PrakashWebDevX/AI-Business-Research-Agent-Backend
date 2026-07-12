@@ -24,3 +24,7 @@ python-multipart==0.0.32
 # Data export (CSV / Excel / JSON)
 pandas==3.0.3
 openpyxl==3.1.5
+
+
+scikit-learn==1.9.0
+pypdf==6.14.2

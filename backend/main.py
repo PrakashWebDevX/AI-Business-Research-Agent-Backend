@@ -31,6 +31,11 @@ Design note — a single shared BusinessAgent:
     per-session or per-user agent pool if that's ever needed.
 """
 
+
+
+from fastapi import UploadFile, File
+import rag
+
 from __future__ import annotations
 
 import logging
@@ -64,6 +69,8 @@ import langchain
 
 logger.info("langchain version: %s", langchain.__version__)
 logger.info("langchain_core version: %s", langchain_core.__version__)
+
+rag.init_rag_tables()
 
 app = FastAPI(
     title="AI Business Research Agent API",
@@ -165,6 +172,28 @@ def health() -> dict:
 # --------------------------------------------------------------------------- #
 # Chat
 # --------------------------------------------------------------------------- #
+@app.post("/api/documents/upload")
+async def upload_document(file: UploadFile = File(...)):
+    try:
+        file_bytes = await file.read()
+        result = rag.add_document(file.filename, file_bytes)
+        return result
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/api/documents")
+def get_documents():
+    return rag.list_documents()
+
+
+@app.delete("/api/documents/{document_id}")
+def remove_document(document_id: int):
+    deleted = rag.delete_document(document_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {"deleted": True}
+
 
 @app.post("/api/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:

@@ -37,6 +37,8 @@ from langchain_core.tools import Tool, tool
 from sql_agent import SQLAgent
 from web_agent import WebAgent
 
+from rag import search_documents
+
 logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------- #
@@ -49,6 +51,33 @@ logger = logging.getLogger(__name__)
 
 _sql_agent_instance: Optional[SQLAgent] = None
 _web_agent_instance: Optional[WebAgent] = None
+
+
+DOCUMENT_SEARCH_TOOL_NAME = "document_search_tool"
+
+
+@tool
+def document_search_tool(question: str) -> str:
+    """Use this tool for ANY question that should be answered using the
+    user's uploaded documents (reports, PDFs, notes) rather than the
+    internal database or the live web.
+
+    Examples:
+    - "What does the uploaded report say about..."
+    - "Summarize the document I uploaded"
+    - "According to my notes, what is..."
+    - Any question referencing 'the document', 'the PDF', 'the report', 'my file'
+
+    Always use this tool when the question references previously uploaded
+    documents. Never answer these questions from your own knowledge or by
+    guessing at document contents.
+    """
+    results = search_documents(question, top_k=4)
+    if not results:
+        return "No relevant information was found in the uploaded documents."
+
+    parts = [f"[From '{r.filename}', chunk {r.chunk_index}]\n{r.content}" for r in results]
+    return "\n\n".join(parts)
 
 
 def _get_sql_agent() -> SQLAgent:
@@ -173,7 +202,7 @@ def get_all_tools() -> List[Tool]:
     Returns:
         A list of LangChain `Tool` instances: [SQL Tool, Web Search Tool].
     """
-    return [sql_database_tool, web_search_tool]
+    return [sql_database_tool, web_search_tool, document_search_tool]
 
 
 # --------------------------------------------------------------------------- #
