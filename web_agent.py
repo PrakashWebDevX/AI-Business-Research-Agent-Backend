@@ -33,7 +33,7 @@ from dotenv import load_dotenv
 from langchain_classic.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
-from langchain_core.tools import Tool
+from langchain_core.tools import Tool, tool
 from langchain_groq import ChatGroq
 from tavily import TavilyClient
 
@@ -77,6 +77,14 @@ MAX_HISTORY_MESSAGES: Final[int] = 12  # Cap on stored chat turns to keep contex
 # `ask_structured()` a "Sources" list to return to the caller (e.g. the
 # dashboard UI), without changing what the LLM itself receives back from
 # the tool call.
+#
+# The inner `_search` function is wrapped with the `@tool` decorator
+# (rather than `Tool.from_function`), which derives a clean, correctly
+# named `query` parameter schema directly from the function signature.
+# `Tool.from_function` without an explicit args_schema falls back to an
+# ambiguous single-argument schema that Groq's tool-calling can reject
+# with a "missing properties: '__arg1'" validation error — @tool avoids
+# that entirely.
 
 
 # --------------------------------------------------------------------------- #
@@ -269,7 +277,9 @@ class WebAgent:
         community tool class) so we have full control over the
         input/output formatting fed back to the LLM, and so we can
         record each result's title/url onto `self._last_sources` for
-        `ask_structured()` to expose afterward.
+        `ask_structured()` to expose afterward. The `@tool` decorator
+        (rather than `Tool.from_function`) ensures Groq receives a
+        clean, unambiguous `query` parameter schema.
 
         Returns:
             A `Tool` instance named "tavily_web_search" ready to be
@@ -287,6 +297,14 @@ class WebAgent:
 
         client = TavilyClient(api_key=api_key)
 
+        @tool(
+            "tavily_web_search",
+            description=(
+                "Search the internet for current, real-world information such as "
+                "news, company facts, market trends, or anything not available in "
+                "the local database. Input should be a focused search query string."
+            ),
+        )
         def _search(query: str) -> str:
             logger.info("=" * 60)
             logger.info("TAVILY SEARCH QUERY: %s", query)
@@ -324,15 +342,7 @@ class WebAgent:
 
             return "\n\n".join(parts) if parts else "No relevant results were found."
 
-        return Tool.from_function(
-            func=_search,
-            name="tavily_web_search",
-            description=(
-                "Search the internet for current, real-world information such as "
-                "news, company facts, market trends, or anything not available in "
-                "the local database. Input should be a focused search query string."
-            ),
-        )
+        return _search
 
 
 # --------------------------------------------------------------------------- #
