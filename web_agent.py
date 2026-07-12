@@ -129,6 +129,8 @@ class WebAgent:
         self._llm = ChatGroq(
             model=model_name,
             temperature=temperature,
+            max_retries=1,      # fail fast instead of waiting ~56s per retry
+            timeout=20,          # give up after 20s instead of hanging indefinitely
         )
 
         # 3. Prompt: system instructions + a chat history placeholder (for
@@ -310,7 +312,7 @@ class WebAgent:
             for i, result in enumerate(response.get("results", []), start=1):
                 title = result.get("title", "")
                 url = result.get("url", "")
-                content = result.get("content", "")
+                content = result.get("content", "")[:500]  # cap each result to ~500 chars before feeding to the LLM
                 logger.info("RESULT %s", i)
                 logger.info("Title: %s", title)
                 logger.info("URL: %s", url)

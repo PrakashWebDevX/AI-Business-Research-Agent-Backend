@@ -123,6 +123,8 @@ class SQLAgent:
         self._llm = ChatGroq(
             model=model_name,
             temperature=temperature,
+            max_retries=1,      # fail fast instead of waiting ~56s per retry
+            timeout=20,          # give up after 20s instead of hanging indefinitely
         )
 
         # 2. Database: wrap the existing SQLAlchemy engine from database.py
