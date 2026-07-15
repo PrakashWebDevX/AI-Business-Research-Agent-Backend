@@ -50,7 +50,7 @@ from langchain_groq import ChatGroq
 
 from prompts import get_orchestrator_prompt
 from schemas import ToolExecutionResult
-from tools import SQL_TOOL_NAME, WEB_SEARCH_TOOL_NAME, get_all_tools, peek_sql_agent, peek_web_agent
+from tools import DOCUMENT_SEARCH_TOOL_NAME, SQL_TOOL_NAME, WEB_SEARCH_TOOL_NAME, get_all_tools, peek_sql_agent, peek_web_agent
 from utils import extract_output_text
 
 # --------------------------------------------------------------------------- #
@@ -334,21 +334,21 @@ class BusinessAgent:
         tools_called = {getattr(action, "tool", None) for action, _obs in intermediate_steps}
         used_sql = SQL_TOOL_NAME in tools_called
         used_web = WEB_SEARCH_TOOL_NAME in tools_called
+        used_doc = DOCUMENT_SEARCH_TOOL_NAME in tools_called
 
-        if used_sql and used_web:
-            tool_used = "Mixed"
-        elif used_sql:
-            tool_used = "SQL Agent"
-        elif used_web:
-            tool_used = "Web Research"
-        else:
-            tool_used = "Direct Answer"
+        labels = []
+        if used_sql:
+            labels.append("SQL Agent")
+        if used_web:
+            labels.append("Web Research")
+        if used_doc:
+            labels.append("Document Search")
+        tool_used = "Mixed" if len(labels) > 1 else (labels[0] if labels else "Direct Answer")
 
         generated_sql = None
         table_data = None
         chart = None
         sources = None
-
         if used_sql:
             sql_agent = peek_sql_agent()
             sql_result = sql_agent.last_result if sql_agent else None
@@ -356,7 +356,6 @@ class BusinessAgent:
                 generated_sql = sql_result.generated_sql
                 table_data = sql_result.table_data
                 chart = sql_result.chart
-
         if used_web:
             web_agent = peek_web_agent()
             web_result = web_agent.last_result if web_agent else None

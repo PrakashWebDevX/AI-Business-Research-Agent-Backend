@@ -205,7 +205,6 @@ class _DocumentIndex:
                 score=float(scores[i]),
             )
             for i in top_indices
-            if scores[i] > 0  # drop zero-relevance matches entirely
         ]
 
 
