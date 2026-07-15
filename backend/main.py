@@ -33,16 +33,14 @@ Design note — a single shared BusinessAgent:
 
 
 
-from fastapi import UploadFile, File
-import rag
-
 from __future__ import annotations
 
 import logging
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+import rag
 from fastapi.responses import Response
 
 from backend import session_store
