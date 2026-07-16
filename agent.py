@@ -72,6 +72,11 @@ GROQ_MODEL_NAME = os.getenv(
     "GROQ_MODEL_NAME",
     "llama-3.3-70b-versatile"
 )
+TOOL_LABEL_SQL: Final[str] = "SQL Agent"
+TOOL_LABEL_WEB: Final[str] = "Web Research"
+TOOL_LABEL_DOCUMENT: Final[str] = "Document Search"
+TOOL_LABEL_MIXED: Final[str] = "Mixed"
+TOOL_LABEL_DIRECT: Final[str] = "Direct Answer"
 GROQ_TEMPERATURE: Final[float] = 0.1  # Low temperature: consistent tool-selection decisions.
 ORCHESTRATOR_MAX_ITERATIONS: Final[int] = 10
 MAX_HISTORY_MESSAGES: Final[int] = 12  # Cap on stored chat turns to keep context small and fast.
@@ -228,17 +233,17 @@ class BusinessAgent:
                 elapsed_seconds=round(time.perf_counter() - start_time, 2),
             )
         except OutputParserException as exc:
-            logger.error("Failed to parse agent output: %s", exc)
+            logger.exception("Failed to parse agent output: %s", exc)
             structured = ToolExecutionResult(
                 answer="I had trouble interpreting the results. Please try rephrasing your question.",
-                tool_used="Direct Answer",
+                tool_used=TOOL_LABEL_DIRECT,
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
             )
         except Exception as exc:  # noqa: BLE001 - surface any failure as a safe message
             logger.exception("BusinessAgent failed to answer question: %s", question)
             structured = ToolExecutionResult(
                 answer=f"Sorry, I ran into an error while processing your request: {exc}",
-                tool_used="Direct Answer",
+                tool_used=TOOL_LABEL_DIRECT,
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
             )
 
@@ -308,6 +313,59 @@ class BusinessAgent:
     # ----------------------------------------------------------------- #
 
     @staticmethod
+    def _determine_tool_used(tools_called: set) -> str:
+        """
+        Map the set of tool names invoked this turn to a single
+        human-readable label. Extracted from `_build_structured_result`
+        to keep cognitive complexity low and avoid a nested ternary.
+        """
+        labels = []
+        if SQL_TOOL_NAME in tools_called:
+            labels.append(TOOL_LABEL_SQL)
+        if WEB_SEARCH_TOOL_NAME in tools_called:
+            labels.append(TOOL_LABEL_WEB)
+        if DOCUMENT_SEARCH_TOOL_NAME in tools_called:
+            labels.append(TOOL_LABEL_DOCUMENT)
+
+        if len(labels) > 1:
+            return TOOL_LABEL_MIXED
+        if labels:
+            return labels[0]
+        return TOOL_LABEL_DIRECT
+
+    @staticmethod
+    def _merge_sub_agent_metadata(tools_called: set) -> tuple:
+        """
+        Pull structured metadata (generated SQL, table data, chart, web
+        sources) left behind by whichever sub-agent(s) ran this turn.
+
+        Returns:
+            (generated_sql, table_data, chart, sources) — any of which
+            may be None if the corresponding tool wasn't used or left
+            no structured result.
+        """
+        generated_sql = None
+        table_data = None
+        chart = None
+        sources = None
+
+        if SQL_TOOL_NAME in tools_called:
+            sql_agent = peek_sql_agent()
+            sql_result = sql_agent.last_result if sql_agent else None
+            if sql_result:
+                generated_sql = sql_result.generated_sql
+                table_data = sql_result.table_data
+                chart = sql_result.chart
+
+        if WEB_SEARCH_TOOL_NAME in tools_called:
+            web_agent = peek_web_agent()
+            web_result = web_agent.last_result if web_agent else None
+            if web_result:
+                sources = web_result.sources
+
+        return generated_sql, table_data, chart, sources
+
+    @staticmethod
     def _build_structured_result(
         answer: str,
         intermediate_steps: List[Any],
@@ -327,40 +385,13 @@ class BusinessAgent:
             elapsed_seconds: Total wall-clock time for this turn.
 
         Returns:
-            A `ToolExecutionResult` with `tool_used` set to "SQL Agent",
-            "Web Research", "Mixed", or "Direct Answer", and any relevant
-            sub-agent metadata merged in.
+            A `ToolExecutionResult` with `tool_used` set to one of the
+            TOOL_LABEL_* constants, and any relevant sub-agent metadata
+            merged in.
         """
         tools_called = {getattr(action, "tool", None) for action, _obs in intermediate_steps}
-        used_sql = SQL_TOOL_NAME in tools_called
-        used_web = WEB_SEARCH_TOOL_NAME in tools_called
-        used_doc = DOCUMENT_SEARCH_TOOL_NAME in tools_called
-
-        labels = []
-        if used_sql:
-            labels.append("SQL Agent")
-        if used_web:
-            labels.append("Web Research")
-        if used_doc:
-            labels.append("Document Search")
-        tool_used = "Mixed" if len(labels) > 1 else (labels[0] if labels else "Direct Answer")
-
-        generated_sql = None
-        table_data = None
-        chart = None
-        sources = None
-        if used_sql:
-            sql_agent = peek_sql_agent()
-            sql_result = sql_agent.last_result if sql_agent else None
-            if sql_result:
-                generated_sql = sql_result.generated_sql
-                table_data = sql_result.table_data
-                chart = sql_result.chart
-        if used_web:
-            web_agent = peek_web_agent()
-            web_result = web_agent.last_result if web_agent else None
-            if web_result:
-                sources = web_result.sources
+        tool_used = BusinessAgent._determine_tool_used(tools_called)
+        generated_sql, table_data, chart, sources = BusinessAgent._merge_sub_agent_metadata(tools_called)
 
         return ToolExecutionResult(
             answer=answer,
