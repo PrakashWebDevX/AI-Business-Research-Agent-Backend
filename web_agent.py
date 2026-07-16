@@ -62,6 +62,11 @@ WEB_AGENT_MAX_ITERATIONS: Final[int] = 8
 TAVILY_MAX_RESULTS: Final[int] = 5
 MAX_HISTORY_MESSAGES: Final[int] = 12  # Cap on stored chat turns to keep context small and fast.
 
+# Tool label, extracted as a constant to avoid duplicating the literal
+# string across the try/except blocks in ask_structured() below
+# (flagged by SonarCloud as a maintainability issue).
+TOOL_LABEL_WEB: Final[str] = "Web Research"
+
 # NOTE: The system prompt that steers this agent toward searching,
 # summarizing, and staying concise now lives in prompts.py as
 # WEB_AGENT_SYSTEM_PROMPT (used inside get_web_agent_prompt()), so it can
@@ -218,7 +223,7 @@ class WebAgent:
 
             structured = ToolExecutionResult(
                 answer=answer,
-                TOOL_LABEL_WEB: Final[str] = "Web Research",
+                tool_used=TOOL_LABEL_WEB,
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
                 sources=list(self._last_sources) or None,
             )
@@ -226,14 +231,14 @@ class WebAgent:
             logger.exception("Failed to parse agent output: %s", exc)
             structured = ToolExecutionResult(
                 answer="I had trouble interpreting the search results. Please try rephrasing your question.",
-                TOOL_LABEL_WEB: Final[str] = "Web Research",
+                tool_used=TOOL_LABEL_WEB,
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
             )
-        except Exception as exc:  # noqa: BLE001 - surface any failure as a safe message
+        except Exception as exc:  # NOSONAR - surface any failure as a safe message
             logger.exception("WebAgent failed to answer question: %s", question)
             structured = ToolExecutionResult(
                 answer=f"Sorry, I ran into an error while searching the web: {exc}",
-                TOOL_LABEL_WEB: Final[str] = "Web Research",
+                tool_used=TOOL_LABEL_WEB,
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
             )
 
@@ -314,7 +319,7 @@ class WebAgent:
                     max_results=TAVILY_MAX_RESULTS,
                     include_answer=True,
                 )
-            except Exception as exc:  # noqa: BLE001 - surface search failures as tool output, not a crash
+            except Exception as exc:  # NOSONAR - surface search failures as tool output, not a crash
                 logger.exception("Tavily search failed for query: %s", query)
                 return f"Web search failed due to an error: {exc}"
 
