@@ -218,22 +218,22 @@ class WebAgent:
 
             structured = ToolExecutionResult(
                 answer=answer,
-                tool_used="Web Research",
+                TOOL_LABEL_WEB: Final[str] = "Web Research",
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
                 sources=list(self._last_sources) or None,
             )
         except OutputParserException as exc:
-            logger.error("Failed to parse agent output: %s", exc)
+            logger.exception("Failed to parse agent output: %s", exc)
             structured = ToolExecutionResult(
                 answer="I had trouble interpreting the search results. Please try rephrasing your question.",
-                tool_used="Web Research",
+                TOOL_LABEL_WEB: Final[str] = "Web Research",
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
             )
         except Exception as exc:  # noqa: BLE001 - surface any failure as a safe message
             logger.exception("WebAgent failed to answer question: %s", question)
             structured = ToolExecutionResult(
                 answer=f"Sorry, I ran into an error while searching the web: {exc}",
-                tool_used="Web Research",
+                TOOL_LABEL_WEB: Final[str] = "Web Research",
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
             )
 

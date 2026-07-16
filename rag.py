@@ -248,7 +248,7 @@ def add_document(filename: str, file_bytes: bytes) -> dict:
         document_id = document.document_id
 
     _index.rebuild()
-    logger.info("Added document '%s' (%d chunks).", filename, len(chunks))
+    logger.info("Added document %r (%d chunks).", filename, len(chunks))
 
     return {"document_id": document_id, "filename": filename, "chunk_count": len(chunks)}
 

@@ -64,7 +64,7 @@ logger = logging.getLogger(__name__)
 
 # NOTE: These will eventually be centralized in config.py. They are kept
 # local for now so this module stays fully functional on its own.
-GROQ_MODEL_NAME: Final[str] = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-120b")
+TOOL_LABEL_SQL: Final[str] = "SQL Agent"
 GROQ_TEMPERATURE: Final[float] = 0.0  # Deterministic output — this is a data agent, not a creative one.
 SQL_AGENT_MAX_ITERATIONS: Final[int] = 15
 SQL_AGENT_TOP_K: Final[int] = 25  # Max rows the agent will consider per query result.
@@ -92,7 +92,7 @@ class SQLAgent:
     def __init__(
         self,
         model_name: str = GROQ_MODEL_NAME,
-        temperature: float = GROQ_TEMPERATURE,
+        tool_used=TOOL_LABEL_SQL,
         verbose: bool = False,
     ) -> None:
         """
@@ -200,13 +200,13 @@ class SQLAgent:
                 chart=chart,
             )
         except OutputParserException as exc:
-            logger.error("Failed to parse agent output: %s", exc)
+            logger.exception("Failed to parse agent output: %s", exc)
             structured = ToolExecutionResult(
                 answer="I had trouble interpreting the database results. Please try rephrasing your question.",
                 tool_used="SQL Agent",
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
             )
-        except Exception as exc:  # noqa: BLE001 - surface any failure as a safe message
+        except Exception as exc:  # NOSONAR - surface any failure as a safe message
             logger.exception("SQLAgent failed to answer question: %s", question)
             structured = ToolExecutionResult(
                 answer=f"Sorry, I ran into an error while querying the database: {exc}",
@@ -302,7 +302,7 @@ class SQLAgent:
                 columns = list(cursor_result.keys())
                 rows = [dict(zip(columns, row)) for row in cursor_result.fetchall()]
                 return rows
-        except Exception:  # noqa: BLE001 - table data is a bonus, never fatal
+        except Exception:  # NOSONAR - table data is a bonus, never fatal
             logger.exception("Failed to re-execute SQL for structured row data: %s", sql)
             return None
 
