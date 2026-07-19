@@ -64,10 +64,15 @@ logger = logging.getLogger(__name__)
 
 # NOTE: These will eventually be centralized in config.py. They are kept
 # local for now so this module stays fully functional on its own.
-TOOL_LABEL_SQL: Final[str] = "SQL Agent"
+GROQ_MODEL_NAME: Final[str] = os.getenv("GROQ_MODEL_NAME", "openai/gpt-oss-120b")
 GROQ_TEMPERATURE: Final[float] = 0.0  # Deterministic output — this is a data agent, not a creative one.
 SQL_AGENT_MAX_ITERATIONS: Final[int] = 15
 SQL_AGENT_TOP_K: Final[int] = 25  # Max rows the agent will consider per query result.
+
+# Tool label, extracted as a constant to avoid duplicating the literal
+# string across the try/except blocks in ask_structured() below
+# (flagged by SonarCloud as a maintainability issue).
+TOOL_LABEL_SQL: Final[str] = "SQL Agent"
 
 # NOTE: The system-level prefix that steers the agent's SQL behavior
 # (read-only constraints, revenue/sales definitions, etc.) now lives in
@@ -92,7 +97,7 @@ class SQLAgent:
     def __init__(
         self,
         model_name: str = GROQ_MODEL_NAME,
-        tool_used=TOOL_LABEL_SQL,
+        temperature: float = GROQ_TEMPERATURE,
         verbose: bool = False,
     ) -> None:
         """
@@ -193,7 +198,7 @@ class SQLAgent:
 
             structured = ToolExecutionResult(
                 answer=answer,
-                tool_used="SQL Agent",
+                tool_used=TOOL_LABEL_SQL,
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
                 generated_sql=generated_sql,
                 table_data=table_data,
@@ -203,14 +208,14 @@ class SQLAgent:
             logger.exception("Failed to parse agent output: %s", exc)
             structured = ToolExecutionResult(
                 answer="I had trouble interpreting the database results. Please try rephrasing your question.",
-                tool_used="SQL Agent",
+                tool_used=TOOL_LABEL_SQL,
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
             )
         except Exception as exc:  # NOSONAR - surface any failure as a safe message
             logger.exception("SQLAgent failed to answer question: %s", question)
             structured = ToolExecutionResult(
                 answer=f"Sorry, I ran into an error while querying the database: {exc}",
-                tool_used="SQL Agent",
+                tool_used=TOOL_LABEL_SQL,
                 execution_time_seconds=round(time.perf_counter() - start_time, 2),
             )
 
